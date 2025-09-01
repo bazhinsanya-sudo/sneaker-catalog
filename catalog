@@ -178,7 +178,7 @@
     const CATALOG = [
       {
         id: 1,
-        brand: ‘Bmai’,
+        brand: 'Bmai',
         name: 'Carbon Shock 3.0 Turbo',
         price: 9900,
         image: 'https://iimg.su/i/D8YqRv',
