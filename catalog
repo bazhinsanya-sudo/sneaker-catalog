@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Каталог кроссовок</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      /* Telegram injects theme variables when opened as WebApp */
+      --bg: var(--tg-theme-bg-color, #0a0a0a);
+      --text: var(--tg-theme-text-color, #ffffff);
+      --hint: var(--tg-theme-hint-color, #9aa0a6);
+      --link: var(--tg-theme-link-color, #36a6ff);
+      --button: var(--tg-theme-button-color, #2ea6ff);
+      --button-text: var(--tg-theme-button-text-color, #ffffff);
+      --secondary-bg: var(--tg-theme-secondary-bg-color, #141414);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 140px 120px 140px;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .filters input,
+    .filters select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--secondary-bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--secondary-bg);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 150px 1fr auto;
+      transition: transform .12s ease;
+    }
+    .card:hover { transform: translateY(-2px); }
+
+    .card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      background: #222;
+      display: block;
+    }
+
+    .card-body { padding: 10px 12px; display: grid; gap: 6px; }
+    .brand { font-size: 12px; color: var(--hint); text-transform: uppercase; letter-spacing: .6px; }
+    .name { font-size: 14px; font-weight: 600; }
+    .price { font-weight: 700; }
+
+    .card-footer {
+      padding: 10px 12px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--button);
+      color: var(--button-text);
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .muted { color: var(--hint); font-size: 12px; }
+
+    .empty { text-align: center; padding: 40px 12px; color: var(--hint); }
+
+    @media (max-width: 700px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title">Каталог кроссовок</div>
+      <div class="filters">
+        <input id="q" type="search" placeholder="Поиск модели... (например, Air Max)" />
+        <select id="brand">
+          <option value="">Бренд: любой</option>
+        </select>
+        <select id="sort">
+          <option value="pop">Сортировка: популярное</option>
+          <option value="price_asc">Цена ↑</option>
+          <option value="price_desc">Цена ↓</option>
+        </select>
+        <select id="price">
+          <option value="">Цена: любая</option>
+          <option value="100">до 100 €</option>
+          <option value="150">до 150 €</option>
+          <option value="200">до 200 €</option>
+          <option value="300">до 300 €</option>
+        </select>
+      </div>
+    </header>
+
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">Ничего не найдено 🙈</div>
+
+    <footer class="muted">* Покупка вне приложения. Кнопка «Купить» откроет личные сообщения продавца в Telegram.</footer>
+  </div>
+
+  <script>
+    // 1) Telegram WebApp bootstrap
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      // Optional main button behavior (not used for purchase here)
+      tg.MainButton.hide();
+    }
+
+    // 2) Demo catalog data
+    const CATALOG = [
+      {
+        id: 1,
+        brand: ‘Bmai’,
+        name: 'Carbon Shock 3.0 Turbo',
+        price: 9900,
+        image: 'https://iimg.su/i/D8YqRv',
+        sellerHandle: 'AlexanderBazhin' // 
+      },
+      {
+        id: 2,
+        brand: 'Bmai',
+        name: 'Carbon Fly 3',
+        price: 7800,
+        image: 'https://iimg.su/i/vaJcjx',
+        sellerHandle: 'AlexanderBazhin'
+      },
+    ];
+
+    // 3) Populate brand filter
+    const brands = Array.from(new Set(CATALOG.map(i => i.brand))).sort();
+    const brandSelect = document.getElementById('brand');
+    brands.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b; opt.textContent = b; brandSelect.appendChild(opt);
+    });
+
+    // 4) Rendering
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    const q = document.getElementById('q');
+    const sort = document.getElementById('sort');
+    const price = document.getElementById('price');
+
+    function openSeller(handle) {
+      const url = `https://t.me/${handle}`;
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
+      else window.open(url, '_blank');
+    }
+
+    function card(item) {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `
+        <img src="${item.image}" alt="${item.name}">
+        <div class="card-body">
+          <div class="brand">${item.brand}</div>
+          <div class="name">${item.name}</div>
+        </div>
+        <div class="card-footer">
+          <div class="price">€ ${item.price}</div>
+          <button class="btn" data-handle="${item.sellerHandle}">Купить</button>
+        </div>
+      `;
+      el.querySelector('.btn').addEventListener('click', () => openSeller(item.sellerHandle));
+      return el;
+    }
+
+    function applyFilters() {
+      const text = q.value.trim().toLowerCase();
+      const brand = brandSelect.value;
+      const sortBy = sort.value;
+      const maxPrice = price.value ? Number(price.value) : Infinity;
+
+      let data = CATALOG.filter(i =>
+        (!brand || i.brand === brand) &&
+        i.price <= maxPrice &&
+        (!text || (`${i.brand} ${i.name}`.toLowerCase().includes(text)))
+      );
+
+      if (sortBy === 'price_asc') data.sort((a,b) => a.price - b.price);
+      else if (sortBy === 'price_desc') data.sort((a,b) => b.price - a.price);
+      // 'pop' leaves original order
+
+      grid.innerHTML = '';
+      if (!data.length) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      data.forEach(i => grid.appendChild(card(i)));
+    }
+
+    q.addEventListener('input', applyFilters);
+    brandSelect.addEventListener('change', applyFilters);
+    sort.addEventListener('change', applyFilters);
+    price.addEventListener('change', applyFilters);
+
+    applyFilters();
+
+    // 5) React to theme changes (optional)
+    if (tg) {
+      tg.onEvent('themeChanged', () => {
+        document.body.style.background = getComputedStyle(document.documentElement).getPropertyValue('--tg-theme-bg-color');
+      });
+    }
+  </script>
+</body>
+</html>
